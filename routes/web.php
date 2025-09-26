@@ -43,7 +43,6 @@ Route::prefix('products')
     ->middleware(['auth', 'admin'])
     ->group(function () {
         Route::get('create', [ProductController::class, 'create'])->name('products.create');
-        Route::get('/', [ProductController::class, 'index'])->name('products.index');
         Route::post('/', [ProductController::class, 'store'])->name('products.store');
         Route::get('{product}/edit', [ProductController::class, 'edit'])->name('products.edit');
         Route::put('{product}', [ProductController::class, 'update'])->name('products.update');
