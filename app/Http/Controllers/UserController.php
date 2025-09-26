@@ -3,6 +3,10 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use App\Models\User;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Auth\Events\Registered;
 
 class UserController extends Controller
 {
@@ -15,28 +19,28 @@ class UserController extends Controller
     // 處理註冊請求
     public function register(Request $request)
     {
-        $request->validate([
-            'name' => 'required|string|max:255',
+        $data = $request->validate([
+            'username' => 'required|string|max:50|alpha_num|unique:users,username',
+            'name' => 'required|string|max:100',
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8|confirmed',
             'phone' => 'nullable|string|max:50',
             'address' => 'nullable|string|max:255',
         ]);
 
-        $user = \App\Models\User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => bcrypt($request->password),
-            'phone' => $request->input('phone', null),
-            'address' => $request->input('address', null),
-            'role' => 'member',
-        ]);
+        // 逐欄賦值，直觀
+        $user = new User();
+        $user->username = $data['username'];
+        $user->name = $data['name'];
+        $user->email = $data['email'];
+        $user->password = Hash::make($data['password']);
+        $user->phone = $data['phone'] ?? null;
+        $user->address = $data['address'] ?? null;
+        $user->role = 'member'; // 強制只能為 member
+        $user->save();
 
         // 寄發驗證信
         $user->sendEmailVerificationNotification();
-
-        // 登出（若想自動登入可移除 logout）
-        auth()->logout();
 
         // 不自動登入：導向提示頁告知使用者檢查信箱
         return redirect()->route('verification.notice');
@@ -51,11 +55,19 @@ class UserController extends Controller
     // 處理登入請求
     public function login(Request $request)
     {
-        $credential = $request->validate([
-            'email' => 'required|string|email',
+        // 驗證輸入
+        $data = $request->validate([
+            'username' => 'required|string|max:50|alpha_num',
             'password' => 'required|string',
         ]);
 
+        // 寫入憑證
+        $credential = [
+            'username' => $data['username'],
+            'password' => $data['password'],
+        ];
+
+        // 驗證使用者身份
         if (auth()->attempt($credential)) {
             $request->session()->regenerate();
 
@@ -63,7 +75,7 @@ class UserController extends Controller
 
             // 若尚未驗證電子郵件，登出並回傳錯誤（可同時重新寄驗證信）
             if (! $user->hasVerifiedEmail()) {
-                // 可選：重新寄送驗證信
+                // 重新寄送驗證信
                 $user->sendEmailVerificationNotification();
 
                 auth()->logout();
@@ -84,6 +96,7 @@ class UserController extends Controller
     public function logout(Request $request)
     {
         auth()->logout();
+        // 清除 session 使之失效 並重新產生 CSRF token
         $request->session()->invalidate();
         $request->session()->regenerateToken();
         return redirect('/');
@@ -92,7 +105,9 @@ class UserController extends Controller
     // 顯示使用者個人資料
     public function profile()
     {
-        return view('profile', ['user' => auth()->user()]);
+        $user = auth()->user();
+
+        return view('profile', ['user' => $user]);
     }
 
     // 更新使用者個人資料
@@ -101,16 +116,16 @@ class UserController extends Controller
         $user = auth()->user();
 
         $request->validate([
-            'name' => 'required|string|max:255',
+            'username' => 'required|string|max:50|alpha_num|unique:users,username,' . $user->id,
             'email' => 'required|string|email|max:255|unique:users,email,' . $user->id,
             'password' => 'nullable|string|min:8|confirmed',
         ]);
 
-        $user->name = $request->name;
+        $user->username = $request->username;
         $user->email = $request->email;
 
         if ($request->filled('password')) {
-            $user->password = bcrypt($request->password);
+            $user->password = Hash::make($request->password);
         }
 
         $user->save();

@@ -20,6 +20,6 @@
     </ul>
 
     <p><a href="{{ route('orders.index') }}">回訂單列表</a></p>
-    <p><a href="{{ route('products.index') }}">回商品列表</a></p>
+    <p><a href="{{ route('home') }}">回商品列表</a></p>
 </body>
 </html>

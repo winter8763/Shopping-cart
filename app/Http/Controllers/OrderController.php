@@ -5,9 +5,12 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Models\Order;
-use App\Models\Order_item;
+use App\Models\OrderItem;
 use App\Models\Product;
 use App\Notifications\OrderPlaced;
+use App\Models\Cart;
+use App\Models\CartItem;
+use App\Http\Controllers\Controller;
 
 
 class OrderController extends Controller
@@ -38,14 +41,21 @@ class OrderController extends Controller
         return view('orders.show', compact('order'));
     }
 
-    // 從 session cart 建立訂單
+    // 從 DB cart 建立訂單（改為使用資料庫購物車）
     public function store(Request $request)
     {
+        $user = $request->user();
+        if (! $user) {
+            return redirect()->route('login');
+        }
 
-        $cart = $request->session()->get('cart', []);
-        if (empty($cart)) {
+        // 取得該使用者的購物車與項目
+        $cart = Cart::where('user_id', $user->id)->first();
+        if (! $cart || $cart->items()->count() === 0) {
             return redirect()->route('cart.index')->with('error', '購物車為空，無法建立訂單。');
         }
+
+        $items = $cart->items()->with('product')->get();
 
         // 驗證可選的配送資訊
         $data = $request->validate([
@@ -55,10 +65,10 @@ class OrderController extends Controller
 
         DB::beginTransaction();
         try {
-            $total = collect($cart)->sum(fn($i) => (float) ($i['price'] ?? 0) * (int) ($i['qty'] ?? $i['quantity'] ?? 1));
+            $total = $items->sum(fn($i) => ($i->price ?? 0) * (int) ($i->quantity ?? 1));
 
             $order = Order::create([
-                'user_id' => $request->user()->id,
+                'user_id' => $user->id,
                 'total_price' => $total ?? 0,
                 'shipping_address' => $data['address'] ?? null,
                 'notes' => $data['notes'] ?? null,
@@ -66,38 +76,35 @@ class OrderController extends Controller
                 'payment_method' => 'cash',
             ]);
 
-            foreach ($cart as $item) {
-                $quantity = (int) ($item['qty'] ?? $item['quantity'] ?? 1);
-                $productId = $item['id'] ?? null;
+            // $item 是一筆 CartItem model
+            foreach ($items as $item) {
+                $quantity = (int) ($item->quantity ?? 1);
+                $product = $item->product; // eager loaded（預先載入）取得主模型時，一併把關聯資料一次查出
 
-                // 取得 product，若存在則檢查並扣庫存
-                $product = $productId ? Product::find($productId) : null;
                 if ($product) {
                     if ($product->stock < $quantity) {
                         DB::rollBack();
                         return redirect()->route('cart.index')->with('error', "商品 {$product->name} 庫存不足。");
                     }
-                    // 使用 decrement 做原子扣款
+                    // 原子扣庫存
                     $product->decrement('stock', $quantity);
                 }
 
                 $order->items()->create([
-                    'product_id' => $productId,
-                    'name' => $item['name'] ?? null,
-                    'price' => (float) ($item['price'] ?? 0),
+                    'product_id' => $item->product_id,
+                    'name' => $item->name ?? ($product->name ?? null),
+                    'price' => (float) ($item->price ?? ($product->price ?? 0)),
                     'quantity' => $quantity,
                 ]);
             }
 
             DB::commit();
 
-            // 建單成功後清空 session cart
-            $request->session()->forget('cart');
+            // 建單成功後清空該使用者的購物車項目
+            $cart->items()->delete();
 
             // 送出通知（email / 簡訊）
-            if ($request->user()) {
-                $request->user()->notify(new OrderPlaced($order));
-            }
+            $user->notify(new OrderPlaced($order));
 
             return redirect()->route('orders.show', $order)->with('success', '訂單已建立。');
         } catch (\Throwable $e) {

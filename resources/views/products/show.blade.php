@@ -13,7 +13,7 @@
     <p>Stock: {{ $product->stock }}</p>
 
     <p>
-        <a href="{{ route('products.index') }}">Back</a>
+        <a href="{{ route('home') }}">Back</a>
         <a href="{{ route('products.edit', $product) }}" style="margin-left:8px">Edit</a>
     </p>
 

@@ -11,6 +11,10 @@
         <input type="text" name="name" value="{{ old('name') }}">
         @error('name')<div>{{ $message }}</div>@enderror
         <br>
+        <label>帳號：</label>
+        <input type="text" name="username" value="{{ old('username') }}">
+        @error('username')<div>{{ $message }}</div>@enderror
+        <br>
         <label>Email：</label>
         <input type="email" name="email" value="{{ old('email') }}">
         @error('email')<div>{{ $message }}</div>@enderror

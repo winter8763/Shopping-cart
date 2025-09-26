@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use App\Models\Orders;
 use App\Models\Product;
 
-class Order_item extends Model
+class OrderItem extends Model
 {
     protected $table = 'order_items';
 

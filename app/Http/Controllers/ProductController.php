@@ -7,12 +7,13 @@ use App\Models\Product;
 use App\Http\Controllers\Controller;
 use App\Http\Middleware\IsAdmin;
 use App\Models\Category;
+use Illuminate\Support\Facades\Schema;
 
 class ProductController extends Controller
 {
     public function index(Request $request)
     {
-
+        // query()開始一個查詢
         $search = $request->query('search');
         $categoryId = $request->query('category_id');
         $min = $request->query('min_price');
@@ -21,9 +22,10 @@ class ProductController extends Controller
 
         $query = Product::query();
 
-        // 關鍵字（name 或 description）
+        // 關鍵字
         if (!empty($search)) {
             $query->where(function ($q) use ($search) {
+                // 對 name 或 description 做模糊搜尋
                 $q->where('name', 'like', '%' . $search . '%')
                     ->orWhere('description', 'like', '%' . $search . '%');
             });
@@ -36,10 +38,10 @@ class ProductController extends Controller
 
         // 價格區間
         if (is_numeric($min)) {
-            $query->where('price', '>=', (float) $min);
+            $query->where('price', '>=', $min);
         }
         if (is_numeric($max)) {
-            $query->where('price', '<=', (float) $max);
+            $query->where('price', '<=', $max);
         }
 
         // 排序
@@ -54,9 +56,9 @@ class ProductController extends Controller
         $products = $query->paginate(12)->appends($request->query());
 
         // categories 用於下拉篩選（若沒有 categories table 則回空集合）
-        $category = \Illuminate\Support\Facades\Schema::hasTable('categories') ? Category::all() : collect();
+        $categories = Schema::hasTable('categories') ? Category::all() : collect();
 
-        return view('products.index', compact('products', 'category'));
+        return view('welcome', compact('products', 'categories'));
     }
 
     public function create()
@@ -115,6 +117,8 @@ class ProductController extends Controller
     public function destroy(Product $product)
     {
         $product->delete();
+
+        // redirect 時只傳 id（route helper 會用 id 生成 url）
         return redirect()->route('products.index')->with('success', 'Product deleted.');
     }
 }

@@ -37,7 +37,7 @@
         <p>願望清單目前沒有商品。</p>
     @endif
 
-    <p><a href="{{ route('products.index') }}">回商品列表</a></p>
+    <p><a href="{{ route('home') }}">回商品列表</a></p>
     <p><a href="{{ route('cart.index') }}">前往購物車</a></p>
 </body>
 </html>

@@ -16,15 +16,33 @@
     @else
         <table border="1" cellpadding="6" cellspacing="0">
             <thead>
-                <tr><th>商品</th><th>單價</th><th>數量</th><th>小計</th></tr>
+                <tr><th>商品</th><th>單價</th><th>數量</th><th>小計</th><th>操作</th></tr>
             </thead>
             <tbody>
             @foreach($cart as $item)
                 <tr>
                     <td>{{ $item['name'] }}</td>
                     <td>${{ number_format($item['price'], 2) }}</td>
-                    <td>{{ $item['qty'] }}</td>
+                    <td>
+                        <!-- 更新數量表單 -->
+                        <form action="{{ route('cart.update') }}" method="POST" style="display:inline;">
+                            @csrf
+                            @method('PATCH')
+                            <input type="hidden" name="product_id" value="{{ $item['id'] }}">
+                            <input type="number" name="qty" value="{{ $item['qty'] }}" min="0" style="width:60px;">
+                            <button type="submit">更新</button>
+                        </form>
+                    </td>
                     <td>${{ number_format($item['price'] * $item['qty'], 2) }}</td>
+                    <td>
+                        <!-- 移除單項表單 -->
+                        <form action="{{ route('cart.remove') }}" method="POST" style="display:inline;">
+                            @csrf
+                            @method('DELETE')
+                            <input type="hidden" name="product_id" value="{{ $item['id'] }}">
+                            <button type="submit" onclick="return confirm('確定移除？')">移除</button>
+                        </form>
+                    </td>
                 </tr>
             @endforeach
             </tbody>
@@ -65,6 +83,6 @@
         </form>
     @endif
 
-    <p><a href="{{ route('products.index') }}">回商品列表</a></p>
+    <p><a href="{{ route('home') }}">回商品列表</a></p>
 </body>
 </html>
