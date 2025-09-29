@@ -4,8 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use Illuminate\Auth\Events\Verified;
-
 use Illuminate\Http\Request;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 
 class VerificationController extends Controller
 {
@@ -25,7 +25,11 @@ class VerificationController extends Controller
     // 驗證連結處理
     public function verify(Request $request, $id, $hash)
     {
-        $user = User::findOrFail($id);
+        try {
+            $user = User::findOrFail($id);
+        } catch (ModelNotFoundException $e) {
+            return redirect()->route('login')->with('error', '找不到該使用者。');
+        }
 
         // 驗證 hash 是否與該使用者 email 對應（安全檢查）
         if (! hash_equals((string) $hash, sha1($user->getEmailForVerification()))) {

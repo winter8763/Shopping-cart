@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Auth\Events\Registered;
+use Illuminate\Support\Facades\DB;
 
 class UserController extends Controller
 {
@@ -37,10 +38,13 @@ class UserController extends Controller
         $user->phone = $data['phone'] ?? null;
         $user->address = $data['address'] ?? null;
         $user->role = 'member'; // 強制只能為 member
-        $user->save();
 
-        // 寄發驗證信
-        $user->sendEmailVerificationNotification();
+
+        DB::transaction(function () use ($user) {
+            $user->save();
+            // 寄發驗證信
+            $user->sendEmailVerificationNotification();
+        });
 
         // 不自動登入：導向提示頁告知使用者檢查信箱
         return redirect()->route('verification.notice');
@@ -107,6 +111,17 @@ class UserController extends Controller
     {
         $user = auth()->user();
 
+        // 精準寫法
+        $user = User::select('name', 'email', 'phone', 'address')
+            ->where('id', $user->id)
+            ->first();
+
+        // $result = [];
+        // $result['name'] = $user->name;
+        // $result['email'] = $user->email;
+        // $result['phone'] = $user->phone;
+        // $result['address'] = $user->address;
+
         return view('profile', ['user' => $user]);
     }
 
@@ -116,12 +131,12 @@ class UserController extends Controller
         $user = auth()->user();
 
         $request->validate([
-            'username' => 'required|string|max:50|alpha_num|unique:users,username,' . $user->id,
+            'name' => 'required|string|max:50|alpha_num|unique:users,username,' . $user->id,
             'email' => 'required|string|email|max:255|unique:users,email,' . $user->id,
             'password' => 'nullable|string|min:8|confirmed',
         ]);
 
-        $user->username = $request->username;
+        $user->name = $request->name;
         $user->email = $request->email;
 
         if ($request->filled('password')) {

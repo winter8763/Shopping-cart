@@ -2,16 +2,13 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\UserController;
-use Illuminate\Foundation\Auth\EmailVerificationRequest;
-use Illuminate\Http\Request;
-use App\Models\User;
-use Illuminate\Auth\Events\Verified;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\WishlistController;
 use App\Http\Controllers\VerificationController;
 
+// 首頁
 Route::get('/', [ProductController::class, 'index'])->name('home');
 
 // 使用者相關路由

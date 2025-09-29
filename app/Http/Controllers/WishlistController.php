@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\Wishlist;
 use App\Models\WishlistItem;
 use App\Models\Product;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 
 class WishlistController extends Controller
 {
@@ -43,8 +44,15 @@ class WishlistController extends Controller
     }
 
     // 從願望清單移除
-    public function destroy(WishlistItem $item)
+    public function destroy($id)
     {
+        try {
+            $item = WishlistItem::findOrFail($id);
+        } catch (ModelNotFoundException $e) {
+            return back()->with('error', '找不到該願望清單項目');
+        }
+
+        // 權限檢查
         if ($item->wishlist->user_id !== auth()->id()) {
             abort(403);
         }

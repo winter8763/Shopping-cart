@@ -8,19 +8,24 @@ use App\Http\Controllers\Controller;
 use App\Http\Middleware\IsAdmin;
 use App\Models\Category;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 
 class ProductController extends Controller
 {
+    private function getCategories()
+    {
+        return Category::all();
+    }
+
     public function index(Request $request)
     {
-        // query()開始一個查詢
-        $search = $request->query('search');
-        $categoryId = $request->query('category_id');
-        $min = $request->query('min_price');
-        $max = $request->query('max_price');
-        $sort = $request->query('sort');
+        $search = $request->get('search');
+        $categoryId = $request->get('category_id');
+        $min = $request->get('min_price');
+        $max = $request->get('max_price');
+        $sort = $request->get('sort');
 
-        $query = Product::query();
+        $query = Product::query(); // 建立查詢（還沒跑SQL）
 
         // 關鍵字
         if (!empty($search)) {
@@ -63,7 +68,7 @@ class ProductController extends Controller
 
     public function create()
     {
-        $categories = Category::all();
+        $categories = $this->getCategories();
         return view('products.create', compact('categories'));
     }
 
@@ -82,7 +87,16 @@ class ProductController extends Controller
 
         Product::create($data);
 
-        return redirect()->route('products.index')->with('success', 'Product created.');
+        $product = new Product();
+        $product->name = $data['name'];
+        $product->description = $data['description'] ?? '';
+        $product->price = $data['price'];
+        $product->stock = $data['stock'];
+        $product->category_id = $data['category_id'] ?? null;
+        $product->image_url = $data['image_url'] ?? '';
+        $product->save();
+
+        return redirect()->route('home')->with('success', 'Product created.');
     }
 
     public function show(Product $product)
@@ -92,7 +106,7 @@ class ProductController extends Controller
 
     public function edit(Product $product)
     {
-        $categories = Category::all();
+        $categories = $this->getCategories();
         return view('products.edit', compact('product', 'categories'));
     }
 
@@ -114,11 +128,17 @@ class ProductController extends Controller
         return redirect()->route('products.show', $product)->with('success', 'Product updated.');
     }
 
-    public function destroy(Product $product)
+    public function destroy($id)
     {
+        try {
+            $product = Product::findOrFail($id);
+        } catch (ModelNotFoundException $e) {
+            return redirect()->route('home')->with('error', '找不到指定的商品。');
+        }
+
         $product->delete();
 
         // redirect 時只傳 id（route helper 會用 id 生成 url）
-        return redirect()->route('products.index')->with('success', 'Product deleted.');
+        return redirect()->route('home')->with('success', 'Product deleted.');
     }
 }

@@ -51,11 +51,10 @@ class OrderController extends Controller
 
         // 取得該使用者的購物車與項目
         $cart = Cart::where('user_id', $user->id)->first();
-        if (! $cart || $cart->items()->count() === 0) {
+        $items = $cart->items()->with('product')->get();
+        if (! $cart || count($items) === 0) {
             return redirect()->route('cart.index')->with('error', '購物車為空，無法建立訂單。');
         }
-
-        $items = $cart->items()->with('product')->get();
 
         // 驗證可選的配送資訊
         $data = $request->validate([
@@ -67,14 +66,14 @@ class OrderController extends Controller
         try {
             $total = $items->sum(fn($i) => ($i->price ?? 0) * (int) ($i->quantity ?? 1));
 
-            $order = Order::create([
-                'user_id' => $user->id,
-                'total_price' => $total ?? 0,
-                'shipping_address' => $data['address'] ?? null,
-                'notes' => $data['notes'] ?? null,
-                'status' => 'pending',
-                'payment_method' => 'cash',
-            ]);
+            $order = new Order();
+            $order->user_id = $user->id;
+            $order->total_price = $total ?? 0;
+            $order->shipping_address = $data['address'] ?? null;
+            $order->notes = $data['notes'] ?? null;
+            $order->status = 'pending';
+            $order->payment_method = 'cash';
+            $order->save();
 
             // $item 是一筆 CartItem model
             foreach ($items as $item) {
